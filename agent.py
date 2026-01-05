@@ -22,11 +22,11 @@ class BaseAgent:
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: str = "gpt-4-turbo-preview"
+        model: Optional[str] = None
     ):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.base_url = base_url or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-        self.model = model or os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+        self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4-turbo-preview"
         
         if self.api_key:
             self.client = OpenAI(
