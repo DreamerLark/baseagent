@@ -1,58 +1,112 @@
+import asyncio
 from agent import BaseAgent
-from skills import SkillRegistry
-from mcp_client import MCPManager
+from skills import SkillCategory
 
 
-def main():
-    print("=== BaseAgent Example Usage ===\n")
+async def main():
+    print("=== BaseAgent Usage Example ===\n")
     
     agent = BaseAgent()
-    skill_registry = SkillRegistry()
     
-    for skill_name, skill_info in skill_registry.get_all_skills().items():
-        agent.register_skill(
-            name=skill_name,
-            func=lambda sn=skill_name, **kwargs: skill_registry.execute(sn, **kwargs),
-            description=skill_info["description"],
-            parameters=skill_info["parameters"]
-        )
-    
-    print("Registered skills:")
-    for skill_name in skill_registry.get_all_skills().keys():
-        print(f"  - {skill_name}")
+    print("Step 1: Listing default skills...")
+    skills = await agent.list_all_skills()
+    print(f"Available skills: {list(skills['skills'].keys())}")
     print()
     
-    examples = [
-        "What is the current time?",
-        "Calculate 15 multiplied by 8",
-        "What is 100 divided by 4?",
-    ]
+    print("Step 2: Testing skill execution...")
+    result = await agent.skill_registry.execute("calculate", operation="add", a=15, b=27)
+    if result.success:
+        print(f"Calculate 15 + 27 = {result.data['result']}")
+    else:
+        print(f"Error: {result.error}")
+    print()
     
-    print("Running example queries:\n")
+    print("Step 3: Adding a custom weather skill...")
+    def get_weather(city: str, unit: str = "celsius") -> dict:
+        return {
+            "city": city,
+            "temperature": 22,
+            "unit": unit,
+            "condition": "Sunny",
+            "humidity": 65,
+            "wind_speed": 10
+        }
+    
+    await agent.register_skill(
+        name="get_weather",
+        version="1.0.0",
+        description="Get weather information for a specific city",
+        func=get_weather,
+        input_schema={
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "description": "The city name"
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": ["celsius", "fahrenheit"],
+                    "description": "Temperature unit",
+                    "default": "celsius"
+                }
+            },
+            "required": ["city"]
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "city": {"type": "string"},
+                "temperature": {"type": "number"},
+                "unit": {"type": "string"},
+                "condition": {"type": "string"},
+                "humidity": {"type": "number"},
+                "wind_speed": {"type": "number"}
+            }
+        },
+        category=SkillCategory.CUSTOM,
+        tags=["weather", "forecast"]
+    )
+    print("Weather skill registered\n")
+    
+    print("Step 4: Testing custom skill...")
+    result = await agent.skill_registry.execute("get_weather", city="Beijing")
+    if result.success:
+        print(f"Weather in Beijing: {result.data}")
+    else:
+        print(f"Error: {result.error}")
+    print()
+    
+    print("Step 5: Example conversations:\n")
+    
+    examples = [
+        "What's 125 divided by 5?",
+        "What time is it now?",
+        "Search for the word 'Python' in this text: 'I love Python programming'",
+    ]
     
     for example in examples:
         print(f"User: {example}")
-        response = agent.chat(example)
-        print(f"Agent: {response}")
+        print("Agent: Processing with OpenAI API format...")
+        print("Note: Set OPENAI_API_KEY in .env to enable actual LLM responses")
         print()
     
-    print("\n=== Interactive Mode ===")
-    print("Type your questions (or 'quit' to exit):\n")
+    print("=" * 50)
+    print("Example complete!")
+    print("=" * 50)
+    print()
+    print("To run with a real OpenAI API:")
+    print("1. Copy .env.example to .env")
+    print("2. Add your OPENAI_API_KEY")
+    print("3. Run: python example_usage.py")
+    print()
+    print("To start the API server:")
+    print("1. Configure .env file")
+    print("2. Run: python server.py")
+    print("3. Visit: http://localhost:8000/docs")
     
-    while True:
-        try:
-            user_input = input("You: ")
-            if user_input.lower() in ["quit", "exit", "q"]:
-                break
-            
-            response = agent.chat(user_input)
-            print(f"Agent: {response}\n")
-        except KeyboardInterrupt:
-            print("\nExiting...")
-            break
-        except Exception as e:
-            print(f"Error: {e}\n")
+    await agent.close()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -1,29 +1,26 @@
+import asyncio
 from agent import BaseAgent
-from skills import SkillRegistry
-from mcp_client import MCPManager
+from skills import SkillCategory
 
 
-def main():
+async def main():
     print("=== BaseAgent with MCP Integration Example ===\n")
     
     agent = BaseAgent()
-    skill_registry = SkillRegistry()
-    mcp_manager = MCPManager()
     
-    print("Step 1: Registering default skills...")
-    for skill_name, skill_info in skill_registry.get_all_skills().items():
-        agent.register_skill(
-            name=skill_name,
-            func=lambda sn=skill_name, **kwargs: skill_registry.execute(sn, **kwargs),
-            description=skill_info["description"],
-            parameters=skill_info["parameters"]
-        )
-    print(f"Registered {len(skill_registry.get_all_skills())} skills\n")
+    print("Step 1: Listing default skills...")
+    skills = await agent.list_all_skills()
+    print(f"Available skills: {list(skills['skills'].keys())}")
+    print()
     
     print("Step 2: Setting up MCP servers...")
-    print("Note: To use real MCP servers, uncomment and configure below:")
-    print("# mcp_manager.add_server('filesystem', 'http://localhost:3000')")
-    print("# agent.register_mcp_server('filesystem', {'client': mcp_manager.get_server('filesystem')})")
+    print("Note: MCP servers use stdio communication and JSON-RPC 2.0")
+    print("Example MCP server commands:")
+    print("  - ['python', 'mcp_server.py']")
+    print("  - ['npx', '-y', '@modelcontextprotocol/server-filesystem', '/path/to/dir']")
+    print()
+    print("To add an MCP server, use:")
+    print("  await agent.register_mcp_server('server_name', ['command', 'args'])")
     print()
     
     print("Step 3: Adding a custom weather skill as example...")
@@ -37,11 +34,12 @@ def main():
             "wind_speed": 10
         }
     
-    agent.register_skill(
+    await agent.register_skill(
         name="get_weather",
-        func=get_weather,
+        version="1.0.0",
         description="Get weather information for a specific city",
-        parameters={
+        func=get_weather,
+        input_schema={
             "type": "object",
             "properties": {
                 "city": {
@@ -56,13 +54,27 @@ def main():
                 }
             },
             "required": ["city"]
-        }
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "city": {"type": "string"},
+                "temperature": {"type": "number"},
+                "unit": {"type": "string"},
+                "condition": {"type": "string"},
+                "humidity": {"type": "number"},
+                "wind_speed": {"type": "number"}
+            }
+        },
+        category=SkillCategory.CUSTOM,
+        tags=["weather", "forecast"]
     )
     print("Custom weather skill registered\n")
     
-    print("Step 4: Listing all available skills:")
-    for skill_name in agent.skills.keys():
-        print(f"  - {skill_name}")
+    print("Step 4: Listing all available tools (Skills + MCP)...")
+    all_tools = await agent.list_all_tools()
+    print(f"Skills: {list(all_tools['skills'].keys())}")
+    print(f"MCP Servers: {all_tools['mcp_servers']}")
     print()
     
     print("Step 5: Example conversations:\n")
@@ -83,6 +95,17 @@ def main():
     print("Example complete!")
     print("=" * 50)
     print()
+    print("MCP Integration Notes:")
+    print("- MCP uses JSON-RPC 2.0 over stdio")
+    print("- MCP servers are started as subprocesses")
+    print("- Tools from MCP servers are automatically converted to OpenAI function format")
+    print("- MCP tool names are prefixed with server name (e.g., 'servername_toolname')")
+    print()
+    print("To use with a real MCP server:")
+    print("1. Install an MCP server (e.g., npm install -g @modelcontextprotocol/server-filesystem)")
+    print("2. Register it: await agent.register_mcp_server('filesystem', ['npx', '-y', '@modelcontextprotocol/server-filesystem', '/path/to/dir'])")
+    print("3. Use it in chat: The agent will automatically use available MCP tools")
+    print()
     print("To run with a real OpenAI API:")
     print("1. Copy .env.example to .env")
     print("2. Add your OPENAI_API_KEY")
@@ -92,7 +115,9 @@ def main():
     print("1. Configure .env file")
     print("2. Run: python server.py")
     print("3. Visit: http://localhost:8000/docs")
+    
+    await agent.close()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
