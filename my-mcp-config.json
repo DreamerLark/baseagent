@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/tmp"
+      ],
+      "env": {
+        "TZ": "Asia/Shanghai"
+      }
+    },
+    "weather": {
+      "command": [
+        "python",
+        "./weather_service.py"
+      ],
+      "timeout": 30,
+      "env": {
+        "API_KEY": "your-api-key-here",
+        "TZ": "Asia/Shanghai"
+      }
+    },
+    "calculator": {
+      "command": [
+        "node",
+        "./calculator_server.js"
+      ],
+      "env": {
+        "DEBUG": "true"
+      }
+    }
+  }
+}

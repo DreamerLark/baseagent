@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+      "env": {
+        "TZ": "Asia/Shanghai"
+      }
+    },
+    "time_service": {
+      "command": ["python", "./time_service.py"],
+      "env": {
+        "TZ": "Asia/Shanghai"
+      }
+    }
+  }
+}
