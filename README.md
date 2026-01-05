@@ -1,15 +1,15 @@
 # BaseAgent
 
-A minimal AI agent designed to test and demonstrate skill support, following both AgentSkills and Model Context Protocol (MCP) specifications.
+A minimal AI agent designed to test and demonstrate Anthropic Skills and Model Context Protocol (MCP) integration.
 
 ## Specifications
 
-- **AgentSkills**: Following the specification at https://agentskills.io/home
+- **Anthropic Skills**: Following the specification at https://github.com/anthropics/skills
 - **MCP**: Following the specification at https://modelcontextprotocol.io/docs/getting-started/intro
 
 ## Features
 
-- ✅ AgentSkills implementation with proper manifests and versioning
+- ✅ Anthropic Skills implementation with YAML frontmatter and markdown instructions
 - ✅ MCP (Model Context Protocol) client with JSON-RPC 2.0 over stdio
 - ✅ OpenAI API format with function calling support
 - ✅ Built-in skills for common operations
@@ -33,18 +33,40 @@ bash setup.sh
 ```python
 import asyncio
 from agent import BaseAgent
+from skills import SkillCategory
 
 async def main():
     agent = BaseAgent()
     
+    # Register a skill following Anthropic Skills specification
+    await agent.register_skill(
+        name="calculator",
+        description="Perform arithmetic calculations including addition, subtraction, multiplication, division, and more",
+        instructions="""You are a calculator assistant. Perform accurate mathematical calculations and provide clear, step-by-step explanations when helpful.
+
+For calculations:
+- Show your work for complex problems
+- Round results to appropriate precision
+- Check for edge cases (division by zero, negative numbers, etc.)
+- Use standard mathematical notation
+
+Supported operations:
+- Basic arithmetic: +, -, *, /
+- Advanced: power (^), square root (√)
+- Order of operations applies
+""",
+        category=SkillCategory.UTILITIES,
+        tags=["math", "calculator", "arithmetic"],
+        examples=[
+            "What's 15% of 80?",
+            "Calculate 2^10",
+            "What is the square root of 144?"
+        ]
+    )
+    
     # List available skills
     skills_info = await agent.list_all_skills()
     print(f"Available skills: {list(skills_info['skills'].keys())}")
-    
-    # Execute a skill directly
-    result = await agent.skill_registry.execute("calculate", operation="add", a=5, b=3)
-    if result.success:
-        print(f"Result: {result.data['result']}")
     
     # Chat with the agent
     response = await agent.chat("What is 25 + 17?")
@@ -55,57 +77,79 @@ async def main():
 asyncio.run(main())
 ```
 
-## AgentSkills Implementation
+## Anthropic Skills Implementation
 
-### Skill Manifest
+### Skill Format
 
-Each skill follows the AgentSkills specification with a complete manifest:
+Skills follow the Anthropic Skills specification with YAML frontmatter and markdown instructions:
 
 ```python
 from skills import SkillCategory
 
 agent.register_skill(
-    name="my_skill",
-    version="1.0.0",
+    name="my-skill",
     description="Description of what the skill does",
-    func=my_function,
-    input_schema={
-        "type": "object",
-        "properties": {
-            "param1": {"type": "string"}
-        },
-        "required": ["param1"]
-    },
-    output_schema={
-        "type": "object",
-        "properties": {
-            "result": {"type": "string"}
-        }
-    },
-    author="your-name",
-    category=SkillCategory.CUSTOM,
-    tags=["custom", "tag"]
+    instructions="""You are a specialized assistant. Provide clear, helpful responses.
+
+Guidelines:
+- Be accurate and precise
+- Follow the examples provided
+- Use appropriate formatting
+""",
+    category=SkillCategory.UTILITIES,
+    tags=["custom", "tag"],
+    examples=[
+        "Example usage 1",
+        "Example usage 2"
+    ],
+    guidelines=[
+        "Guideline 1",
+        "Guideline 2"
+    ]
 )
 ```
 
 ### Skill Categories
 
+- `CREATIVE` - Creative and design skills
+- `DEVELOPMENT` - Development and technical skills
+- `ENTERPRISE` - Enterprise and communication skills
+- `DOCUMENT` - Document processing skills
 - `UTILITIES` - Utility functions
-- `MATH` - Mathematical operations
-- `FILE_OPERATIONS` - File I/O operations
-- `TEXT_PROCESSING` - Text manipulation
-- `DATA_MANIPULATION` - Data processing
-- `COMMUNICATION` - Communication tools
-- `ANALYSIS` - Analysis tools
 - `CUSTOM` - Custom user-defined skills
 
 ### Built-in Skills
 
-1. **calculate** - Perform arithmetic operations (add, subtract, multiply, divide, power, sqrt)
-2. **get_current_time** - Get current date and time
-3. **read_file** - Read file contents
-4. **write_file** - Write content to file
-5. **search_text** - Search for text within content
+1. **calculator** - Perform arithmetic calculations with step-by-step explanations
+2. **current-time** - Get current date and time information
+3. **file-operations** - Read and write files safely
+4. **text-processing** - Search, analyze, and manipulate text content
+
+### Markdown Format
+
+Skills can be loaded from markdown files following this format:
+
+```markdown
+---
+name: calculator
+description: Perform arithmetic calculations including addition, subtraction, multiplication, division, and more
+version: "1.0.0"
+category: utilities
+tags: ["math", "calculator", "arithmetic"]
+examples:
+  - "What's 15% of 80?"
+  - "Calculate 2^10"
+---
+
+# Calculator Skill
+
+You are a calculator assistant. Perform accurate mathematical calculations and provide clear, step-by-step explanations when helpful.
+
+For calculations:
+- Show your work for complex problems
+- Round results to appropriate precision
+- Use standard mathematical notation
+```
 
 ## MCP Implementation
 
