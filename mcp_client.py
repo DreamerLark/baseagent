@@ -22,16 +22,18 @@ class MCPClient:
     MCP uses JSON-RPC 2.0 over stdio for communication
     """
     
-    def __init__(self, command: List[str], timeout: int = 30):
+    def __init__(self, command: List[str], timeout: int = 30, env: Optional[Dict[str, str]] = None):
         """
         Initialize MCP client with server command
         
         Args:
             command: Command to start the MCP server (e.g., ["python", "server.py"])
             timeout: Default timeout for requests
+            env: Environment variables for the subprocess (optional)
         """
         self.command = command
         self.timeout = timeout
+        self.env = env
         self.process: Optional[subprocess.Popen] = None
         self.request_id = 0
         self.capabilities: Optional[MCPCapabilities] = None
@@ -46,13 +48,20 @@ class MCPClient:
         
     async def start(self):
         """Start the MCP server process"""
+        # Prepare environment variables
+        env = None
+        if self.env:
+            env = os.environ.copy()
+            env.update(self.env)
+        
         self.process = subprocess.Popen(
             self.command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            bufsize=0
+            bufsize=0,
+            env=env
         )
         
         # Initialize the connection
@@ -250,7 +259,7 @@ class MCPManager:
     def __init__(self):
         self.clients: Dict[str, MCPClient] = {}
         
-    async def add_server(self, name: str, command: List[str], timeout: int = 30) -> MCPClient:
+    async def add_server(self, name: str, command: List[str], timeout: int = 30, env: Optional[Dict[str, str]] = None) -> MCPClient:
         """
         Add an MCP server
         
@@ -258,11 +267,12 @@ class MCPManager:
             name: Server name
             command: Command to start the server
             timeout: Request timeout
+            env: Environment variables for the subprocess (optional)
             
         Returns:
             The MCP client instance
         """
-        client = MCPClient(command, timeout)
+        client = MCPClient(command, timeout, env)
         await client.start()
         self.clients[name] = client
         return client
