@@ -43,32 +43,28 @@ class BaseAgent:
     async def register_skill(
         self,
         name: str,
-        version: str,
         description: str,
-        func,
-        input_schema: Dict[str, Any],
-        output_schema: Dict[str, Any],
-        author: str = "baseagent",
+        instructions: str,
+        version: str = "1.0.0",
         category = None,
         tags: Optional[List[str]] = None,
-        documentation: Optional[str] = None
+        examples: Optional[List[str]] = None,
+        guidelines: Optional[List[str]] = None
     ):
-        """Register a new skill following AgentSkills specification"""
+        """Register a new skill following Anthropic Skills specification"""
         from skills import SkillCategory
         if category is None:
             category = SkillCategory.CUSTOM
             
         self.skill_registry.register_skill(
             name=name,
-            version=version,
             description=description,
-            func=func,
-            input_schema=input_schema,
-            output_schema=output_schema,
-            author=author,
+            instructions=instructions,
+            version=version,
             category=category,
             tags=tags,
-            documentation=documentation
+            examples=examples,
+            guidelines=guidelines
         )
         
     async def register_mcp_server(self, name: str, command: List[str], timeout: int = 30):
@@ -87,13 +83,24 @@ class BaseAgent:
         return self.skill_registry.to_openai_tools()
         
     async def _execute_skill(self, skill_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a skill by name"""
-        result = await self.skill_registry.execute(skill_name, **arguments)
+        """Execute a skill by name - return skill instructions for AI guidance"""
+        skill = self.skill_registry.get_skill(skill_name)
         
-        if result.success:
-            return result.data
-        else:
-            return {"error": result.error}
+        if not skill:
+            return {"error": f"Skill '{skill_name}' not found"}
+        
+        # For Anthropic Skills, we return the skill information
+        # The AI will use this information to guide its behavior
+        return {
+            "skill_name": skill_name,
+            "description": skill.frontmatter.description,
+            "instructions": skill.frontmatter.instructions,
+            "category": skill.frontmatter.category,
+            "tags": skill.frontmatter.tags,
+            "examples": skill.frontmatter.examples,
+            "guidelines": skill.frontmatter.guidelines,
+            "message": f"Skill '{skill_name}' is now active. Follow the instructions provided."
+        }
             
     async def _call_mcp_tool(self, server_name: str, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call a tool on an MCP server"""
@@ -266,56 +273,42 @@ if __name__ == "__main__":
     async def main():
         agent = BaseAgent()
         
-        def calculate(operation: str, a: float, b: float) -> Dict[str, Any]:
-            operations = {
-                "add": lambda x, y: x + y,
-                "subtract": lambda x, y: x - y,
-                "multiply": lambda x, y: x * y,
-                "divide": lambda x, y: x / y if y != 0 else "Error: Division by zero"
-            }
-            
-            if operation in operations:
-                result = operations[operation](a, b)
-                return {"result": result}
-            else:
-                return {"error": f"Unknown operation: {operation}"}
-        
-        from skills import SkillCategory
+        # Register a calculator skill following Anthropic Skills spec
         await agent.register_skill(
-            name="calculate",
-            version="1.0.0",
+            name="calculator",
             description="Perform basic arithmetic operations (add, subtract, multiply, divide)",
-            func=calculate,
-            input_schema={
-                "type": "object",
-                "properties": {
-                    "operation": {
-                        "type": "string",
-                        "enum": ["add", "subtract", "multiply", "divide"],
-                        "description": "The arithmetic operation to perform"
-                    },
-                    "a": {
-                        "type": "number",
-                        "description": "The first number"
-                    },
-                    "b": {
-                        "type": "number",
-                        "description": "The second number"
-                    }
-                },
-                "required": ["operation", "a", "b"]
-            },
-            output_schema={
-                "type": "object",
-                "properties": {
-                    "result": {"type": "number"}
-                }
-            },
-            category=SkillCategory.MATH,
-            tags=["arithmetic", "basic"]
+            instructions="""You are a calculator assistant. Perform accurate mathematical calculations and provide clear, step-by-step explanations when helpful.
+
+For calculations:
+- Show your work for complex problems
+- Round results to appropriate precision
+- Check for edge cases (division by zero, negative numbers, etc.)
+- Use standard mathematical notation
+
+Supported operations:
+- Basic arithmetic: +, -, *, /
+- Advanced: power (^), square root (√)
+- Order of operations applies
+
+Example responses:
+- "2 + 3 = 5"
+- "For 15% of 80: 0.15 × 80 = 12"
+""",
+            category=SkillCategory.UTILITIES,
+            tags=["arithmetic", "basic", "math"],
+            examples=[
+                "What's 15% of 80?",
+                "Calculate 2^10",
+                "What is the square root of 144?"
+            ],
+            guidelines=[
+                "Show work for complex calculations",
+                "Use appropriate precision",
+                "Check for edge cases"
+            ]
         )
         
-        print("BaseAgent initialized. Type 'quit' to exit.")
+        print("BaseAgent initialized with Anthropic Skills. Type 'quit' to exit.")
         print("Example: What is 25 + 17?")
         print()
         

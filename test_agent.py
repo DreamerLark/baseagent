@@ -5,7 +5,7 @@ from skills import SkillCategory, SkillRegistry
 
 
 class TestSkillRegistry(unittest.TestCase):
-    """Test the SkillRegistry implementation following AgentSkills specification"""
+    """Test the SkillRegistry implementation following Anthropic Skills specification"""
     
     def setUp(self):
         self.registry = SkillRegistry()
@@ -13,82 +13,78 @@ class TestSkillRegistry(unittest.TestCase):
     def test_default_skills_registered(self):
         """Test that default skills are registered"""
         skills = self.registry.get_all_skills()
-        self.assertIn("calculate", skills)
-        self.assertIn("get_current_time", skills)
-        self.assertIn("read_file", skills)
-        self.assertIn("write_file", skills)
-        self.assertIn("search_text", skills)
+        self.assertIn("current-time", skills)
+        self.assertIn("calculator", skills)
+        self.assertIn("file-operations", skills)
+        self.assertIn("text-processing", skills)
         
-    def test_skill_execution(self):
-        """Test skill execution"""
-        async def run_test():
-            result = await self.registry.execute("calculate", operation="add", a=5, b=3)
-            self.assertTrue(result.success)
-            self.assertEqual(result.data["result"], 8)
-            
-        asyncio.run(run_test())
+    def test_skill_structure(self):
+        """Test skill structure following Anthropic Skills spec"""
+        skill = self.registry.get_skill("calculator")
+        self.assertIsNotNone(skill)
+        self.assertEqual(skill.frontmatter.name, "calculator")
+        self.assertEqual(skill.frontmatter.version, "1.0.0")
+        self.assertEqual(skill.frontmatter.category, SkillCategory.UTILITIES)
+        self.assertIn("math", skill.frontmatter.tags)
+        self.assertIsNotNone(skill.frontmatter.instructions)
+        self.assertIn("arithmetic", skill.frontmatter.description.lower())
         
-    def test_skill_error_handling(self):
-        """Test skill error handling"""
-        async def run_test():
-            result = await self.registry.execute("nonexistent_skill")
-            self.assertFalse(result.success)
-            self.assertIsNotNone(result.error)
-            
-        asyncio.run(run_test())
+    def test_skill_markdown_generation(self):
+        """Test markdown generation for skills"""
+        skill = self.registry.get_skill("calculator")
+        markdown = skill.to_markdown()
         
-    def test_custom_skill_registration(self):
-        """Test registering a custom skill"""
-        def custom_function(x: int) -> dict:
-            return {"result": x * 2}
-            
+        self.assertTrue(markdown.startswith("---"))
+        self.assertIn("name:", markdown)
+        self.assertIn("calculator", markdown)
+        self.assertIn("description:", markdown)
+        
+    def test_load_skill_from_markdown(self):
+        """Test loading skill from markdown content"""
+        markdown_content = """---
+name: test-skill
+description: Test skill for markdown loading
+version: "1.0.0"
+category: utilities
+tags: ["test", "example"]
+---
+
+# Test Skill
+This is a test skill for verification.
+"""
+        
+        self.registry.load_skill_from_markdown(markdown_content)
+        skill = self.registry.get_skill("test-skill")
+        
+        self.assertIsNotNone(skill)
+        self.assertEqual(skill.frontmatter.name, "test-skill")
+        self.assertEqual(skill.frontmatter.category, SkillCategory.UTILITIES)
+        self.assertIn("test", skill.frontmatter.tags)
+        
+    def test_skill_registration(self):
+        """Test manual skill registration"""
         self.registry.register_skill(
-            name="double",
-            version="1.0.0",
-            description="Double a number",
-            func=custom_function,
-            input_schema={
-                "type": "object",
-                "properties": {
-                    "x": {"type": "integer"}
-                },
-                "required": ["x"]
-            },
-            output_schema={
-                "type": "object",
-                "properties": {
-                    "result": {"type": "integer"}
-                }
-            },
-            category=SkillCategory.MATH,
-            tags=["math", "multiplication"]
+            name="custom-skill",
+            description="Custom test skill",
+            instructions="You are a custom skill assistant.",
+            category=SkillCategory.CUSTOM,
+            tags=["custom", "test"]
         )
         
-        async def run_test():
-            result = await self.registry.execute("double", x=21)
-            self.assertTrue(result.success)
-            self.assertEqual(result.data["result"], 42)
-            
-        asyncio.run(run_test())
-        
-    def test_skill_manifest(self):
-        """Test skill manifest structure"""
-        skill = self.registry.get_skill("calculate")
+        skill = self.registry.get_skill("custom-skill")
         self.assertIsNotNone(skill)
-        self.assertEqual(skill.manifest.name, "calculate")
-        self.assertEqual(skill.manifest.version, "1.0.0")
-        self.assertEqual(skill.manifest.category, SkillCategory.MATH)
-        self.assertIn("math", skill.manifest.tags)
+        self.assertEqual(skill.frontmatter.name, "custom-skill")
+        self.assertEqual(skill.frontmatter.category, SkillCategory.CUSTOM)
         
     def test_skill_to_openai_format(self):
         """Test conversion to OpenAI function calling format"""
         openai_tools = self.registry.to_openai_tools()
         self.assertTrue(len(openai_tools) > 0)
         
-        calculate_tool = next((t for t in openai_tools if t["function"]["name"] == "calculate"), None)
-        self.assertIsNotNone(calculate_tool)
-        self.assertEqual(calculate_tool["type"], "function")
-        self.assertIn("parameters", calculate_tool["function"])
+        calculator_tool = next((t for t in openai_tools if t["function"]["name"] == "calculator"), None)
+        self.assertIsNotNone(calculator_tool)
+        self.assertEqual(calculator_tool["type"], "function")
+        self.assertIn("arithmetic", calculator_tool["function"]["description"].lower())
 
 
 class TestBaseAgent(unittest.TestCase):
@@ -114,34 +110,20 @@ class TestBaseAgent(unittest.TestCase):
         
     def test_skill_registration(self):
         """Test registering a skill through agent"""
-        def custom_func(value: str) -> dict:
-            return {"result": value.upper()}
-            
         async def run_test():
             await self.agent.register_skill(
-                name="uppercase",
-                version="1.0.0",
+                name="test-uppercase",
                 description="Convert string to uppercase",
-                func=custom_func,
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "value": {"type": "string"}
-                    },
-                    "required": ["value"]
-                },
-                output_schema={
-                    "type": "object",
-                    "properties": {
-                        "result": {"type": "string"}
-                    }
-                },
-                category=SkillCategory.TEXT_PROCESSING
+                instructions="You are a text transformation assistant that converts text to uppercase.",
+                category=SkillCategory.UTILITIES,
+                tags=["text", "transform"],
+                examples=["Convert 'hello' to uppercase"]
             )
             
-            result = await self.agent.skill_registry.execute("uppercase", value="hello")
-            self.assertTrue(result.success)
-            self.assertEqual(result.data["result"], "HELLO")
+            skill = self.agent.skill_registry.get_skill("test-uppercase")
+            self.assertIsNotNone(skill)
+            self.assertEqual(skill.frontmatter.name, "test-uppercase")
+            self.assertIn("uppercase", skill.frontmatter.description.lower())
             
         asyncio.run(run_test())
         
@@ -189,7 +171,7 @@ def run_tests():
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("Running BaseAgent Tests")
+    print("Running BaseAgent Tests (Anthropic Skills)")
     print("=" * 50)
     print()
     
