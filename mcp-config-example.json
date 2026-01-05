@@ -1,0 +1,79 @@
+{
+  // MCP (Model Context Protocol) 服务器配置文件
+  // 支持标准 JSON 和带注释的 JSONC 格式
+  
+  "mcpServers": {
+    // 文件系统服务器 - 用于文件操作
+    "filesystem": {
+      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+      "env": {
+        "TZ": "Asia/Shanghai"
+      },
+      "description": "文件系统操作工具，支持读取、写入、列出文件"
+    },
+    
+    // 时间服务器 - 获取当前时间
+    "time_service": {
+      "command": ["python", "./time_service.py"],
+      "timeout": 30,
+      "env": {
+        "TZ": "Asia/Shanghai"
+      },
+      "description": "时间相关功能，获取当前时间、时区转换等"
+    },
+    
+    // 天气服务 - 获取天气信息
+    "weather": {
+      "command": ["python", "./weather_service.py"],
+      "timeout": 60,
+      "env": {
+        "API_KEY": "your-weather-api-key-here",
+        "TZ": "Asia/Shanghai"
+      },
+      "description": "天气查询服务，获取实时天气和预报信息"
+    },
+    
+    // 计算器服务 - 数学计算
+    "calculator": {
+      "command": ["node", "./calculator_server.js"],
+      "timeout": 10,
+      "env": {
+        "DEBUG": "true",
+        "PRECISION": "10"
+      },
+      "description": "高级数学计算服务，支持复杂数学运算"
+    },
+    
+    // 数据库服务 - 数据库操作
+    "database": {
+      "command": ["python", "./database_service.py"],
+      "timeout": 120,
+      "env": {
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_NAME": "myapp",
+        "DB_USER": "user",
+        "DB_PASSWORD": "password"
+      },
+      "description": "数据库操作服务，支持查询、插入、更新等操作"
+    },
+    
+    // HTTP API 客户端 - 调用外部API
+    "api_client": {
+      "command": ["python", "./api_client_service.py"],
+      "timeout": 60,
+      "env": {
+        "API_BASE_URL": "https://api.example.com",
+        "API_TOKEN": "your-api-token-here"
+      },
+      "description": "HTTP API 客户端，用于调用各种外部API服务"
+    }
+  },
+  
+  // 全局环境变量（可选）
+  "globalEnv": {
+    "TZ": "Asia/Shanghai",
+    "LANG": "zh_CN.UTF-8",
+    "DEBUG": "false"
+  }
+}

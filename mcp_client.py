@@ -2,6 +2,7 @@ import json
 import asyncio
 import subprocess
 import sys
+import os
 from typing import Dict, Any, List, Optional, AnyStr
 from dataclasses import dataclass, field
 
@@ -281,12 +282,18 @@ class MCPManager:
         """Get an MCP server by name"""
         return self.clients.get(name)
         
-    async def list_all_tools(self) -> Dict[str, List[Dict[str, Any]]]:
-        """List tools from all connected servers"""
+    async def list_all_tools(self) -> Dict[str, Dict[str, Any]]:
+        """List tools and server info from all connected servers"""
         all_tools = {}
         for server_name, client in self.clients.items():
             tools = await client.list_tools()
-            all_tools[server_name] = tools
+            all_tools[server_name] = {
+                "command": client.command,
+                "timeout": client.timeout,
+                "env": client.env,
+                "tools": tools,
+                "initialized": client.initialized
+            }
         return all_tools
         
     async def call_tool(self, server_name: str, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
